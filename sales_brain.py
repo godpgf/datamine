@@ -2,6 +2,7 @@
 #author=godpgf
 
 import sys
+import datetime
 import random
 import xlrd
 import xlwt
@@ -57,6 +58,20 @@ def city_normalize(x):
         if is_other_city:
             x[i] = u'小城市'
 
+def need_normal(x):
+    for i in range(len(x)):
+        if u'、' not in x[i]:
+            if x[i] not in [u'未知',u'收款',u'无法获取',u'微信wap',u'代付',u'多级商户',u'账户系统']:
+                x[i] = u'小众单一需求'
+            elif x[i] in [u'代付',u'多级商户',u'账户系统']:
+                x[i] = u'特殊单一需求'
+        else:
+            num = len(x[i].split(u'、'))
+            if num >= 4 :
+                x[i] = u'三个以上需求'
+            elif x[i] not in [u'收款、代付',u'收款、多级商户',u'收款、账户系统',u'收款、微信wap']:
+                x[i] = u'小众联合需求'
+
 #统计c45准确率
 def get_c45_percent(dt, x):
     res,percent = dt.predict(x)
@@ -89,7 +104,7 @@ def read_table_file(table_file_path):
 
     return np.array(table),title
 
-
+"""
 def split_table(table, title):
     predict_table = []
     normal_table = []
@@ -103,6 +118,31 @@ def split_table(table, title):
             normal_table.append(t)
     random.shuffle(normal_table)
     return np.array(normal_table), np.array(predict_table)
+"""
+
+#过滤掉没有用的数据
+def filter_table(table, title):
+    use_table = []
+    for t in table:
+        if t[title[u'PSS阶段']] != u'待处理' and len(t[title[u'PSS阶段']]) > 0:
+            use_table.append(t.copy())
+    random.shuffle(use_table)
+    return np.array(use_table)
+
+#得到训练数据
+def filter_train_table(table, title):
+    use_table = []
+    for t in table:
+        if t[title[u'PSS阶段']] == u'结项回款':
+            use_table.append(t)
+        elif t[title[u'PSS阶段']] == u'CLOSE' \
+                or t[title[u'PSS阶段']] == u'一周内无人接听' \
+                or (datetime.datetime.now() - datetime.datetime.strptime(t[title[u'创建时间']], "%Y-%m-%d %H:%M:%S")).days > 30:
+            #print (datetime.datetime.now() - datetime.datetime.strptime(t[title[u'创建时间']], "%Y-%m-%d %H:%M:%S")).days
+            #已知肯定不会付款的和长时间都没付款的，当做反例
+            t[title[u'PSS阶段']] = u'尚未付款'
+            use_table.append(t)
+    return np.array(use_table)
 
 def cal_accurate_rate(x, y):
     dic = Statistics.get_res_split(x, y, 0, len(y))
@@ -126,7 +166,8 @@ def statistic_table(table, title, statistics_file_path):
     value = []
     lens = []
     acc = []
-    for i in [u'区域',u'城市',u'来源',u'行业',u'公司规模',u'产品需求']:
+    #for i in [u'区域',u'城市',u'来源',u'行业',u'公司规模',u'产品需求']:
+    for i in [u'产品需求']:
         v,l,a = cal_accurate_rate(table[:,title[i]], table[:,title[u'PSS阶段']])
         for j in range(len(v)):
             name.append(i)
@@ -172,8 +213,10 @@ def process_table(table, title):
     DataProcessTool.replace_data(table[:,title[u'公司规模']],{u"待填写":u''})
     DataProcessTool.fast_replace_missing_data(table[:,title[u'公司规模']],set(['']))
 
-    #去掉产品需求缺失值
-    DataProcessTool.fast_replace_missing_data(table[:,title[u'产品需求']],set(['']))
+    #需求中缺失数据太多，专门做一个分类存放
+    DataProcessTool.replace_data(table[:, title[u'产品需求']], {u"待填写": u'未知',u"":u"未知",u"其他":u"未知"})
+    need_normal(table[:, title[u'产品需求']])
+
 
 def process_predict_table(table, title):
     #去掉区域的缺失值
@@ -189,6 +232,10 @@ def process_predict_table(table, title):
     #去掉公司规模缺失值
     DataProcessTool.replace_data(table[:,title[u'公司规模']],{u"待填写":u''})
 
+    # 需求中缺失数据太多，专门做一个分类存放
+    DataProcessTool.replace_data(table[:, title[u'产品需求']], {u"待填写": u'未知', u"": u"未知", u"其他": u"未知"})
+    need_normal(table[:, title[u'产品需求']])
+
 def create_c45_model(x, y):
     return C45.create_tree(x, y, 4)
 
@@ -197,7 +244,7 @@ def create_naive_bayes_model(x, y):
     nb.train(x, y)
     return nb
 
-def predict(normal_table, predict_table, title, model_name, predict_file_path):
+def predict(normal_table, predict_table, title, model_name):
     model_dic = {"naive_bayes":(create_naive_bayes_model,get_nb_percent),"c45":(create_c45_model,get_c45_percent)}
     fun_pair = model_dic[model_name]
     creater = fun_pair[0]
@@ -207,6 +254,12 @@ def predict(normal_table, predict_table, title, model_name, predict_file_path):
     model = creater(train_x, train_y)
 
     predict_x = filt_x(predict_table, title)
+    res = {}
+    for i in range(len(predict_x)):
+        if len(predict_table[i][title[u'企业全称']]) > 0:
+            res[predict_table[i][title[u'企业全称']]] = predicter(model,predict_x[i])
+    return res, normal_percent(normal_table[:,title[u'PSS阶段']])
+    """
     percent = []
     des = []
     for i in range(len(predict_x)):
@@ -234,6 +287,7 @@ def predict(normal_table, predict_table, title, model_name, predict_file_path):
         sheet.write(row,7,"%.2f%%"%(percent[id]*100))
         row+=1
     xls.save(predict_file_path)
+    """
 
 def legitimate_city(x):
     city_list = []
@@ -254,18 +308,42 @@ def legitimate_city(x):
     DataProcessTool.replace_data(x,{u'待确认':u'',u'SH':u'',u'50 人以下':u'',u'无':u'',u'不详':u''})
     DataProcessTool.fast_replace_missing_data(x,set([u'']))
 
+def save_res(res, mean_percent, predict_file_path, table, title):
+    inv_title = {}
+    for key, value in title.items():
+        inv_title[value] = key
+    xls = xlwt.Workbook(encoding='utf-8')
+    sheet = xls.add_sheet("Worksheet")
+    for i in range(len(table[0])):
+        sheet.write(0, i, inv_title[i])
+    sheet.write(0, len(table[0]), u"结项回款概率(超过%.0f%%就不错)"%(mean_percent*100))
+    row = 1
+    for i in range(len(table)):
+        for j in range(len(table[0])):
+            sheet.write(row,j,table[i][j])
+        name = table[i][title[u'企业全称']]
+        if name in res:
+            sheet.write(row,len(table[0]),"%.0f"%(res[name]*100))
+        row+=1
+    xls.save(predict_file_path)
+
 def main(table_file_path, statistics_file_path, predict_file_path, model_name):
     try:
         table,title = read_table_file(table_file_path)
         legitimate_city(table[:,title[u'城市']])
-        normal_table, predict_table = split_table(table, title)
-        statistic_table(normal_table, title, statistics_file_path)
-        process_table(normal_table, title)
 
-        test_model(normal_table, title)
+        #normal_table, predict_table = split_table(table, title)
+        use_table = filter_table(table, title)
+        statistic_table(use_table, title, statistics_file_path)
+        process_table(use_table, title)
 
-        #process_predict_table(predict_table, title)
-        #predict(normal_table,predict_table, title, model_name, predict_file_path)
+        train_table = filter_train_table(use_table,title)
+        test_model(train_table, title)
+
+        predict_table = table.copy()
+        process_predict_table(predict_table, title)
+        res, mean_percent = predict(train_table, predict_table, title, model_name)
+        save_res(res, mean_percent, predict_file_path, table, title)
     except Exception, e:
         print Exception,":",e
         return
