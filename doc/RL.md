@@ -283,5 +283,18 @@ Off-Policy Monte Carlo Control：
 
 ###3.时间差分法(temporal difference)
 
+####基本思想：
+
+动态规划优点：  
+动态规划使用估值函数，已知动态规划在值迭代的时候可以直接用下一个状态的值更新当前状态的值；蒙特卡洛方法使用动作值函数，它只有在等待随机生成的episode所有行为执行完后，才能从后向前更新动作值函数。
+
+蒙特卡洛优点：  
+动态规划在值迭代的时候需要遍历所有state，这就需要一个确定的环境模型（state不能太多），但现实往往是state的数量特别多；蒙特卡洛方法就没有这个限制。
+
+时序差分法可以看成是动态规划和蒙特卡洛方法的结合。和蒙特卡洛方法一样，它不需要环境模型V，能够直接从与环境的交互中学习，因此它也只能用动作值函数Q来指导行为；而它又与动态规划相似，可以基于对其他状态的估计来更新对当前状态估值函数的估计，不用等待最后的结果。  
+>If one had to identify one idea as central and novel to reinforcement learning, it would undoubtedly be temporal-difference (TD) learning. TD learning is a combination of Monte Carlo ideas and dynamic programming (DP) ideas. Like Monte Carlo methods, TD methods can learn directly from raw experience without a model of the environment's dynamics. Like DP, TD methods update estimates based in part on other learned estimates, without waiting for a final outcome (they bootstrap). The relationship between TD, DP, and Monte Carlo methods is a recurring theme in the theory of reinforcement learning. 
+
+
+
 ##自己的想法
 有很多强化学习和督导学习可以结合的地方，比如如何提取有用的输入信号（注意力放在哪），如何将第一次接触的信号不训练直接分类后放到合适的模型中去训练（分区保存数据，比如第一次看到两个轮子的东西知道它是车），如何提取数据间的共性并仅记忆共性（特征提取）
