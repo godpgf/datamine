@@ -259,14 +259,14 @@ Evaluation VS Instruction：
 具体到MC control，就是在每个episode后都重新估计下动作值函数（尽管不是真实值），然后根据近似的动作值函数，进行策略更新。这是一个episode by episode的过程。  
 ![pseudotmp4](file:./RL/pseudotmp4.png)
 
-On-Policy Monte Carlo Control：
+####在策略MC（On-Policy Monte Carlo Control）：
 
 
 为了更好的探测状态空间避免陷入局部最优解，加入![e2](file:./RL/img2.png)-greedy算法：  
 ![20160512105522475](file:./RL/20160512105522475.png)  
 训练越长时间![e2](file:./RL/img2.png)越小，可以提高收敛速度。
 
-Off-Policy Monte Carlo Control：
+####离策略MC（Off-Policy Monte Carlo Control）：
 
 为了让更加接近结果的步骤得到更多的调整机会，而不是一个episode中每一步都有一样多的调整机会，于是提出了Off-Policy方法。这就类似人类下棋，一开始变数太大没有必要花太多精力去学习（调整动作值函数），但越接近结果时越需要更准确的行为估值（需要花费更多的运算去调整动作值函数以便更加准确）。  
 在off-policy中，使用两个策略。一个策略用来生成行为，叫做行为策略（behavior policy）；另外一个策略用来（从终点向起点）评估行为序列准确性的，叫做评估策略（estimation policy）。当第一次发现这两个策略指示的行为出现不同时，开始更新动作值函数，可见越靠近终点的得到调整的概率越大。算法如下：  
@@ -286,13 +286,94 @@ Off-Policy Monte Carlo Control：
 ####基本思想：
 
 动态规划优点：  
-动态规划使用估值函数，已知动态规划在值迭代的时候可以直接用下一个状态的值更新当前状态的值；蒙特卡洛方法使用动作值函数，它只有在等待随机生成的episode所有行为执行完后，才能从后向前更新动作值函数。
+动态规划使用估值函数，已知动态规划在值迭代的时候可以直接用下一个状态的值更新当前状态的值；蒙特卡洛方法使用动作值函数，它只有在等待随机生成的episode所有行为执行完后，才能从后向前更新动作值函数。而且，蒙特卡洛法局限于episode task，不可以用于连续的任务。
 
 蒙特卡洛优点：  
-动态规划在值迭代的时候需要遍历所有state，这就需要一个确定的环境模型（state不能太多），但现实往往是state的数量特别多；蒙特卡洛方法就没有这个限制。
+动态规划在值迭代的时候需要遍历所有state，这就需要一个确定的环境模型（state不能太多），但现实往往是state的数量特别多；蒙特卡洛方法可以从经验中学习不需要环境模型。
 
-时序差分法可以看成是动态规划和蒙特卡洛方法的结合。和蒙特卡洛方法一样，它不需要环境模型V，能够直接从与环境的交互中学习，因此它也只能用动作值函数Q来指导行为；而它又与动态规划相似，可以基于对其他状态的估计来更新对当前状态估值函数的估计，不用等待最后的结果。  
+时序差分法可以看成是动态规划和蒙特卡洛方法的结合。和蒙特卡洛方法一样，它不需要遍历所有state；而它又与动态规划相似，可以基于对其他状态的估计来更新对当前状态估值函数的估计，不用等待最后的结果。  
+
+
 >If one had to identify one idea as central and novel to reinforcement learning, it would undoubtedly be temporal-difference (TD) learning. TD learning is a combination of Monte Carlo ideas and dynamic programming (DP) ideas. Like Monte Carlo methods, TD methods can learn directly from raw experience without a model of the environment's dynamics. Like DP, TD methods update estimates based in part on other learned estimates, without waiting for a final outcome (they bootstrap). The relationship between TD, DP, and Monte Carlo methods is a recurring theme in the theory of reinforcement learning. 
+
+####TD prediction算法：
+
+TD在更新当前状态函数时可以像动态规划那样，使用下一个已经存在的状态v(t+1)和真实的立即反馈rt来更新当前状态v(t)，把这种更新方式叫做bootstrapping方法。由于我们没有状态转移概率，所以要利用多次实验来得到期望状态值函数估值。类似MC方法，在足够多的实验后，状态值函数的估计是能够收敛于真实值的。由于不必等待所有的state都走完就可以更新当前state，所以TD不局限于episode task，可以用于连续的任务。
+
+回忆蒙特卡洛方法值函数更新策略：  
+![numeqtmp28](file:./RL/numeqtmp28.png)  
+其中![inimgtmp936](file:./RL/inimgtmp936.png)是每个episode结束后获得的实际累积回报.这个式子的直观的理解就是用实际累积回报作为状态值函数的估计值。  
+现在我们将公式修改就得到TD(0)的值函数更新公式：  
+![numeqtmp29](file:./RL/numeqtmp29.png)  
+为什么修改成这种形式呢，我们回忆一下状态值函数的定义：  
+![mcupdate](file:./RL/mcupdate.png)  
+很容易发现，利用真实的立即回报和下个状态的值函数来更新当前值函数，这种方式就称为时序差分。
+
+策略评估算法如下：
+
+![pseudotmp7](file:./RL/pseudotmp7.png)
+
+举例说明：  
+假设我们有这么一条路径：A-->B-->end，随机生成8个episode:(A:0-->B:0)、（B:1）、（B:1）、（B:1）、（B:1）、（B:1）、（B:1）、（B:0）。其中A:0表示经过A得到的直接奖励是0。
+
+蒙特卡洛法求解：  
+V(A)=ra+a\*rb=0\+a\*0=0  
+V(B)=average(0+1+1+1+1+1+1+0)=0.75
+
+TD法求解：  
+V(A)=a\*0.75  
+V(B)=0.75
+
+####TD算法优化：
+
+假设只能得到少量的经验（比如10个episodes），很自然的办法就是反复使用它们直到状态值函数收敛。每次使用这些经验都等待全部episodes增量计算完成，再去更新状态值函数。把这种方式叫做批量更新（batch updating）。它可以提高收敛速度，因为如果每次尝试一个episodes得到增量都去更新状态值函数，抖动必然特别严重，因为下一个episode计算出来的增量是受到当前状态取值的影响的。
+
+####Sarsa算法（On-Policy TD Control）：
+
+现在我们利用TD prediction组成新的强化学习算法，用到决策/控制问题中。在这里，强化学习算法可以分为在策略(on-policy)和离策略(off-policy)两类。首先要介绍的sarsa算法属于on-policy算法。  
+与前面DP方法稍微有些区别的是，sarsa算法估计的是动作值函数(Q函数)而非状态值函数。也就是说，我们估计的是策略![pi](file:./RL/inimgtmp411.png)下，任意状态![s](file:./RL/inimgtmp357.png)上所有可执行的动作a的动作值函数![inimgtmp1010](file:./RL/inimgtmp1010.png)，Q函数同样可以利用TD Prediction算法估计。可以把下图的黑点当做一个state：  
+![imgtmp8](file:./RL/imgtmp8.png)  
+给出sarsa的动作值函数更新公式如下：  
+![numeqtmp30](file:./RL/numeqtmp30.png)  
+由于算法每次更新都与s(t)、a(t)、r(t+1)、s(t+1)、a(t+1)有关，所以叫做sarsa算法。完整的流程如下：  
+![pseudotmp8](file:./RL/pseudotmp8.png)
+
+####Q-Learning算法（Off-Policy TD Control）：
+
+在sarsa算法中，选择动作时遵循的策略和更新动作值函数时遵循的策略是相同的，即ϵ−greedy的策略，而在接下来介绍的Q-learning中，动作值函数更新则不同于选取动作时遵循的策略，这种方式称为离策略(Off-Policy)。Q-learning的动作值函数更新公式如下：
+
+![numeqtmp31](file:./RL/numeqtmp31.png)
+
+可以看到，Q-learning与sarsa算法最大的不同在于更新Q值的时候，直接使用了下一个最大的Q值——相当于采用了Q(st+1,a)值最大的动作，并且与当前执行的策略，即选取动作at时采用的策略无关。 Off-Policy方式简化了证明算法分析和收敛性证明的难度，使得它的收敛性很早就得到了证明。Q-learning的完整流程图如下：
+
+![pseudotmp9](file:./RL/pseudotmp9.png)
+
+####Actor-Critic算法：
+
+回忆第一章提出的“强化比较（Reinforcement Comparison）”，策略选择和动作值函数一点关系都没有，完全是一个数据结构去记录动作值函数，另外一个全新的数据结构去记录选择某个试错行为的概率。Actor-Critic算法就是在TD算法的基础上扩展出来的产生试错行为时不依赖于值函数的一种算法。如下图：
+
+![figtmp34](file:./RL/figtmp34.png)
+
+其中Actor是一个产生试错行为的概率函数，而标准的Critic就是一个用来评价行为好坏的值函数（注意不是Q函数）。在值函数更新的时候，会有一个误差值扔给Actor去更新概率函数，这个误差值叫做TD error，公式如下：
+
+![imgtmp41](file:./RL/imgtmp41.png)
+
+假设Actor用softmax算法（Gibbs softmax method）产生试错行为，公式如下：
+
+![imgtmp42](file:./RL/imgtmp42.png)
+
+这里面的概率函数就可以用TD error来更新。方法如下：
+
+![imgtmp43](file:./RL/imgtmp43.png)
+
+其中![inimgtmp1047](file:./RL/inimgtmp1047.png)是学习率，可以不变，也可以一开始很大后来变小。  
+当然也可以用其他版本的概率函数更新方式，比如想让概率越小的行为对应的概率函数更新越快，可以用如下公式：
+
+![imgtmp44](file:./RL/imgtmp44.png)
+
+更多的优化会在未来章节提出。
+
+####R-Learning算法（解决Undiscounted Continuing Tasks）：
 
 
 
