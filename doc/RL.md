@@ -375,6 +375,25 @@ V(B)=0.75
 
 ####R-Learning算法（解决Undiscounted Continuing Tasks）：
 
+R-Learning是为了处理那种无限步骤的问题，这类问题下试错经验不能被划分成episodes并得到最终的回报。
+
+>R-learning is an off-policy control method for the advanced version of the reinforcement learning problem in which one neither discounts nor divides experience into distinct episodes with finite returns. 
+
+这种情况下，某个策略![inimgtmp411](file:./RL/inimgtmp411.png)下的值函数和长时间下的平均回报![inimgtmp1051](file:./RL/inimgtmp1051.png)有关：
+
+![imgtmp45](file:./RL/imgtmp45.png)
+
+经过长期运行以后，平均回报![inimgtmp1051](file:./RL/inimgtmp1051.png)会趋向于一个固定的值，把于平均回报的差值作为真实的立即回报。
+
+![imgtmp46](file:./RL/imgtmp46.png)
+
+类似的动作值函数是：
+
+![imgtmp47](file:./RL/imgtmp47.png)
+
+把这个些值函数称为相对值因为都是相对于策略下的平均回报的。
+>We call these relative values because they are relative to the average reward under the current policy.
+
 
 
 ##自己的想法
