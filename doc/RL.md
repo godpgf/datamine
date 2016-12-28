@@ -402,16 +402,171 @@ R-Learning是为了处理那种无限步骤的问题，这类问题下试错经�
 
 动态规划、蒙特卡洛、时序差这三套算法并不是独立的，很多时候可以联合起来使用会使学习效率大大提升，这就是这一章节的目的所在。
 
-####资格跟踪
+####贡献度
 
-资格跟踪在所有TD算法中都可以使用，包括Q-learning和Sarsa。
+贡献度在所有TD算法中都可以使用，包括Q-learning和Sarsa。
 
 #####n步TD predict算法（n-Step TD Prediction）
 
 在蒙特卡洛方法中，agent是用一个完整的学习阶段获得整个样本序列来估计价值函数的，考虑的是直到终止状态多不以后的反馈。从这一点说，它关 心的是多步以后的反馈之和，是deepbackups，而时序差方法中，agent是基于立 即奖励和后继状态的价值函数的。考虑的是一步之后的反馈，是shallow backups。因此可以把蒙特卡罗方法和时序差方法的差别仅仅看作反馈的深 浅程度不同。  
-最容易想到的蒙特卡罗方法和时序差方法的折中就是：考虑n步的反馈，n 介于1到终止步数之间。这种方法不用等到最后一步就开始对价值函数的更新， 故仍可看作时序差方法，称为n步时序差方法，显然，我们以前介绍的时 序差方法，现在该改称l步TD方法了；而当n趋向无穷大时，就是蒙特卡罗方法。
+最容易想到的蒙特卡罗方法和时序差方法的折中就是：考虑n步的反馈，n 介于1到终止步数之间。这种方法不用等到最后一步就开始对价值函数的更新， 故仍可看作时序差方法，称为n步时序差方法，显然，我们以前介绍的时序差方法，现在该改称l步TD方法了；而当n趋向无穷大时，就是蒙特卡罗方法。
+
+![figtmp36](file:./RL/figtmp36.png)
+
+回忆蒙特卡洛方法，某个值函数![inimgtmp1080](file:./RL/inimgtmp1080.png)使用某个策略计算出的值![inimgtmp1081](file:./RL/inimgtmp1081.png)来更新：  
+![imgtmp48](file:./RL/imgtmp48.png)
+之前的TD算法奖励期望如下：  
+![imgtmp49](file:./RL/imgtmp49.png)  
+2步TD算法奖励期望如下：
+![imgtmp50](file:./RL/imgtmp50.png)  
+n步TD算法奖励期望如下：  
+![numeqtmp32](file:./RL/numeqtmp32.png)
+
+#####前向n步TD算法（The Forward View of TD(![img1](file:./RL/img1.png))）:
+
+之前提到的n步TD算法就是前向的，它会向前看并得到反馈。这里对它进行一下扩展。  
+对于某个奖励期望，我们可以混合多种步长的反馈来得到，比如混合2步和4步：![inimgtmp1127](file:./RL/inimgtmp1127.png)，限制就是每个混合元素的权重和必须是1。把这种方式叫做混合反馈。混合2步和4步的权重都是0.5，如下图：  
+![imgtmp10](file:./RL/imgtmp10.png)  
+下图是另外一种混合方式（每个元素的权重展示）：  
+![figtmp38](file:./RL/figtmp38.png)  
+奖励期望的计算公式：  
+![imgtmp52](file:./RL/imgtmp52.png)  
+于是定义![img1](file:./RL/img1.png)-return算法，每次更新的增量：  
+![numeqtmp35](file:./RL/numeqtmp35.png)  
+这就像人一样，越远的东西看得越不清楚，如下图展示：  
+![figtmp40](file:./RL/figtmp40.png)  
+当然，得更具具体的需求来选择使用具体的方式，千万不能认死理。
+
+#####反向n步TD算法（The Backward View of TD(![img1](file:./RL/img1.png))）：
+
+反向n步TD算法从概念上和计算上更加简单。前向n步TD算法更新时使用了未来将要发生的值，这些值只是一个估计，肯定是不准确的。  
+>In particular, the forward view itself is not directly implementable because it is acausal, using at each step knowledge of what will happen many steps later. 
+
+反向n步TD算法在这方面做了改进，在off-line的情况下更加准确。
+
+反向n步TD算法会为每个访问过的状态![inimgtmp357](file:./RL/inimgtmp357.png)分配一个新的内存空间来保存贡献度（eligibility trace），当循环计算到下一个状态![inimgtmp362](file:./RL/inimgtmp362.png)时，之前所有状态的贡献度都会减小，然后在更具当前状态的TD error来更新（包括当前状态在内的）之前所有状态的值函数，更新方法当然是TD error乘以贡献度。而前向的n步TD算法循环计算到下一个状态时，前面计算过的状态不会再去更新了。
+
+贡献度的更新公式：  
+![numeqtmp36](file:./RL/numeqtmp36.png)  
+其中，![inimgtmp1154](file:./RL/inimgtmp1154.png)是折扣率，![inimgtmp1155](file:./RL/inimgtmp1155.png)是混合权重参数（trace-decay）。把这种贡献度更新公式叫做累积贡献（accumulating trace）因为状态每次被访问时贡献度会累积（甚至大于1），但没被访问时会下降。
+![imgtmp15](file:./RL/imgtmp15.png)
+某个状态下的TD error计算公式：  
+![numeqtmp37](file:./RL/numeqtmp37.png)  
+某个状态下的更新值公式：  
+![numeqtmp38](file:./RL/numeqtmp38.png)  
+具体的算法流程：  
+![pseudotmp11](file:./RL/pseudotmp11.png)  
+更具结果来更新之前状态的理解如下：  
+![figtmp42](file:./RL/figtmp42.png)
+
+#####前向和反向的等价（Equivalence of Forward and Backward Views）：
+
+按理说，前向和反向算法的区别仅在于TD error按照不同的比例分配给各个state，所以它们的累加值应该相同。具体证明参见[sutton book](https://webdocs.cs.ualberta.ca/~sutton/book/ebook/node76.html)
+
+#####Sarsa(![img1](file:./RL/img1.png))算法：
+
+很简单，仅仅把值函数变成动作值函数，类似的更新公式如下：  
+![imgtmp56](file:./RL/imgtmp56.png)  
+其中：  
+![imgtmp57](file:./RL/imgtmp57.png)  
+以及  
+![numeqtmp40](file:./RL/numeqtmp40.png)  
+如图：  
+![figtmp44](file:./RL/figtmp44.png)  
+具体的算法如下：  
+![pseudotmp12](file:./RL/pseudotmp12.png)  
+
+#####Q(![img1](file:./RL/img1.png))算法：
+
+把贡献度和Q-learning算法结合起来，有两种不同的方法：Watkins's Q(![img1](file:./RL/img1.png))、Peng's Q(![img1](file:./RL/img1.png))，先描述前者。
+
+由于Q-learning更新当前动作值函数时，是使用下一个取值最大的动作值函数，要使用贡献度就得想一种特殊的方式。  
+假设在第t步反馈动作值函数的奖励，再假设选择行为时agent在后两步按照贪心法选择的（即后两步就是反馈最大奖励的行为），而在后三步是随机产生的（即后三步不是反馈最大奖励的行为），我们可以只跟踪到最后一个反馈最大奖励的行为那里，后面的（从后三步开始的）就不再跟踪而是直接遍历所有可选的行为找到一个反馈奖励最大的作为终点。  
+
+> Thus, unlike TD(![img1](file:./RL/img1.png)) or Sarsa(![img1](file:./RL/img1.png)), Watkins's Q(![img1](file:./RL/img1.png)) does not look ahead all the way to the end of the episode in its backup. It only looks ahead as far as the next exploratory action.
+
+设![inimgtmp1218](file:./RL/inimgtmp1218.png)是第一个随机选出的非最大奖励的行为（exploratory action），反馈奖励公式如下：  
+![imgtmp58](file:./RL/imgtmp58.png)  
+反馈奖励流程如图：  
+![figtmp46](file:./RL/figtmp46.png)  
+
+第t步的贡献度计算如下：  
+![imgtmp59](file:./RL/imgtmp59.png)  
+其中![inimgtmp1222](file:./RL/inimgtmp1222.png)是指示函数，表示当![inimgtmp1224](file:./RL/inimgtmp1224.png)时是0，其他情况是1。
+
+动作值函数更新公式如下：  
+![imgtmp60](file:./RL/imgtmp60.png)  
+其中  
+![imgtmp61](file:./RL/imgtmp61.png)
+
+具体算法流程如下：  
+![pseudotmp13](file:./RL/pseudotmp13.png)
+
+以上算法有一个小缺陷，就是当exploratory action被频繁的选中时，算法的效果就非常接近于Q(0)，失去了对未来一定时间内奖励的平均这个功能。于是Peng's Q(![img1](file:./RL/img1.png))作为另外一个版本出现了，可以把它看成是Sarsa(![img1](file:./RL/img1.png))和Watkins's Q(![img1](file:./RL/img1.png))的结合。  
+![figtmp47](file:./RL/figtmp47.png)  
+如图，Peng's Q(![img1](file:./RL/img1.png))仅仅在最后一步使用最大的反馈奖励，前面的步骤试错行为的产生和更新都是用同样的策略，所以它即不是on-policy也不是off-policy。简单的说，就是在前面的步骤中都使用on-policy仅在最后一步使用off-policy（即遍历所有可选行为找到最大累积反馈那个来更新）
+
+#####在Actor-Critic算法中使用贡献度：
+
+回忆actor的更新公式：  
+![imgtmp62](file:./RL/imgtmp62.png)  
+改进一下就可以变成：  
+![numeqtmp41](file:./RL/numeqtmp41.png)
+
+或者用另外一个版本：  
+![imgtmp63](file:./RL/imgtmp63.png)  
+在这个版本中，贡献度的更新方式如下：  
+![numeqtmp42](file:./RL/numeqtmp42.png)
+
+#####替换贡献度（Replacing Traces）：
+
+在更新贡献度时，如果某个状态被反复访问，这样它的贡献度因为累积会大于1，为了解决这个问题，可以把贡献度的更新公式改改：  
+![numeqtmp43](file:./RL/numeqtmp43.png)  
+效果如图：  
+![figtmp48](file:./RL/figtmp48.png)  
+于之前的累积贡献度有轻微的不同，把这种方法叫做替换贡献度算法。
+
+用这种方法改进Sarsa(![img1](file:./RL/img1.png))的贡献度更新，如下：  
+![numeqtmp44](file:./RL/numeqtmp44.png)
+
+####生成试和函数试的近似
+
+在前文的描述中，我们必须记录每一个state或者每对state-action的值函数，如果state或state-action数量巨大，就必须找一种近似算法来实现。在这一章节，我将不再按照sutton book的结构，而是结合自己的想法以及深度学习来完成。
+
+#####用长短记忆法记录值函数（我的想法）
+
+可以给当前访问过的每个state或者state-action分配一个内存表示记忆，用c(state)表示记忆的强度。影响记忆强度的方式有几个：  
+1、访问时间：长时间不访问的记忆强度会减弱  
+2、值函数的大小：值函数绝对值特别大的表示印象很深刻，记忆强度也会很大，越接近0的表示越小。  
+3、访问次数：访问次数多的证明这个state经常要去使用，当然记忆强度应该更大。
+
+每次删掉记忆强度小的内存空间，把这种方法叫做“忘记”，这样就可以解决state数量巨大的问题。
+
+#####归纳总结行为序列和state特征。
+
+某些常用的行为序列可以归纳总结出来，生成一个更高级别的行为，即anew=(a1,a2,...,an)。比如说，走路先迈出左脚再迈出右脚，于是得到：a走路=(a迈出左脚,a迈出右脚)，这样就可以只记录一个高级的行为。
+
+同理，可以想办法总结出state特征，用抽象的特征来表示真实的行为，减少数量。
+
+举例：比如一个agent想从柳州去鞍山。
+
+传统的增强学习：得到的行为序列是（a前,a左,a前,a右,.........）
+
+归纳总结后的增强学习(a去北京,a去鞍山)
+
+#####用深度学习
+
+参见Deep Q-Learning。  
+1、用一个深度神经网络来作为Q值的网络，参数为w：  
+![qw](file:./RL/qw.png)  
+2、在Q值中使用均方差mean-square error 来定义目标函数objective function也就是loss function  
+![lw](file:./RL/lw.png)  
+可以看到，这里就是使用了Q-Learning要更新的Q值作为目标值。有了目标值，又有当前值，那么偏差就能通过均方差来进行计算。  
+3、计算参数w关于loss function的梯度，这个可以直接计算得到  
+![ldw](file:./RL/ldw.png)  
+4、使用SGD实现End-to-end的优化目标。有了上面的梯度，而![qdw](file:./RL/qdw.png)可以从深度神经网络中进行计算，因此，就可以使用SGD 随机梯度下降来更新参数，从而得到最优的Q值。
 
 
 
 ##自己的想法
-有很多强化学习和督导学习可以结合的地方，比如如何提取有用的输入信号（注意力放在哪），如何将第一次接触的信号不训练直接分类后放到合适的模型中去训练（分区保存数据，比如第一次看到两个轮子的东西知道它是车），如何提取数据间的共性并仅记忆共性（特征提取）
+有很多强化学习和督导学习可以结合的地方，比如如何提取有用的输入信号（注意力放在哪），如何将第一次接触的信号不训练直接分类后放到合适的模型中去训练（分区保存数据，比如第一次看到两个轮子的东西知道它是车），如何提取数据间的共性并仅记忆共性（特征提取）  
